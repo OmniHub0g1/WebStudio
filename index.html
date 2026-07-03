@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>WebStudio Builder - محرر المواقع المرئي المتكامل</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -27,19 +27,19 @@
 
 <!-- ===== لوحة التحكم ===== -->
 <div id="dashboard">
-    <!-- الشريط العلوي -->
+    <!-- الشريط العلوي المبسط -->
     <div class="toolbar">
-        <div style="display:flex; align-items:center; gap:12px;">
+        <div class="toolbar-left">
             <span class="logo">⚡ WebStudio</span>
         </div>
-        <div class="toolbar-actions">
-            <button class="toolbar-btn" id="undoBtn"><i class="fas fa-undo"></i> تراجع</button>
-            <button class="toolbar-btn" id="redoBtn"><i class="fas fa-redo"></i> إعادة</button>
-            <button class="toolbar-btn toolbar-btn-primary" id="exportBtn"><i class="fas fa-download"></i> تصدير HTML</button>
-            <button class="toolbar-btn" id="themeToggle"><i class="fas fa-moon"></i> المظهر</button>
+        <div class="toolbar-center">
+            <button class="toolbar-btn toolbar-btn-primary" id="exportBtn"><i class="fas fa-download"></i> تصدير</button>
+        </div>
+        <div class="toolbar-right">
+            <button class="toolbar-btn" id="themeToggle"><i class="fas fa-moon"></i></button>
+            <div class="user-info" id="userNameHeader"></div>
             <button class="toolbar-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i></button>
         </div>
-        <div class="user-info" id="userNameHeader"></div>
     </div>
 
     <!-- تبويبات الصفحات -->
@@ -63,11 +63,24 @@
 
         <!-- لوحة الخصائص -->
         <div class="inspector" id="inspectorPanel">
-            <h4><i class="fas fa-sliders-h"></i> الخصائص</h4>
+            <div class="inspector-header">
+                <h4><i class="fas fa-sliders-h"></i> الخصائص</h4>
+                <button class="close-inspector-btn" id="closeInspectorMobile"><i class="fas fa-times"></i></button>
+            </div>
             <div id="inspectorContent">اختر عنصراً لتعديله</div>
         </div>
     </div>
+
+    <!-- شريط التنقل السفلي للجوال -->
+    <div class="mobile-nav-tabs" id="mobileNavTabs">
+        <button class="nav-tab active" data-target="canvas-area"><i class="fas fa-eye"></i> المعاينة</button>
+        <button class="nav-tab" data-target="components-panel"><i class="fas fa-cubes"></i> المكونات</button>
+        <button class="nav-tab" data-target="inspector-panel"><i class="fas fa-sliders-h"></i> الخصائص</button>
+    </div>
 </div>
+
+<!-- طبقة التغطية للجوال -->
+<div class="overlay" id="overlay"></div>
 
 <!-- ============================================================ -->
 <!-- جافا سكريبت -->
@@ -94,7 +107,7 @@
                 this.currentTheme = document.body.classList.contains('dark-mode') ? 'dark' : 'light';
                 localStorage.setItem('webstudio_theme', this.currentTheme);
                 const btn = document.getElementById('themeToggle');
-                btn.innerHTML = this.currentTheme === 'dark' ? '<i class="fas fa-sun"></i> فاتح' : '<i class="fas fa-moon"></i> مظلم';
+                btn.innerHTML = this.currentTheme === 'dark' ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
             }
         };
 
@@ -110,7 +123,7 @@
         let historyPos = -1;
 
         // ============================================================
-        // 3. مكتبة المكونات (نفسها)
+        // 3. مكتبة المكونات
         // ============================================================
         const componentLibrary = {
             'أساسيات': [
@@ -206,7 +219,7 @@
         }
 
         // ============================================================
-        // 5. التراجع والإعادة
+        // 5. التراجع والإعادة (محذوف من الواجهة لكن نترك المنطق للاستخدام الداخلي)
         // ============================================================
         function pushHistory() {
             const state = JSON.parse(JSON.stringify({ pages, currentPageId }));
@@ -214,28 +227,6 @@
             historyStack.push(state);
             historyPos++;
             if (historyStack.length > 50) historyStack.shift();
-        }
-
-        function undo() {
-            if (historyPos > 0) {
-                historyPos--;
-                const state = historyStack[historyPos];
-                pages = state.pages;
-                currentPageId = state.currentPageId;
-                renderAll();
-                showToast('↩️ تراجع');
-            }
-        }
-
-        function redo() {
-            if (historyPos < historyStack.length - 1) {
-                historyPos++;
-                const state = historyStack[historyPos];
-                pages = state.pages;
-                currentPageId = state.currentPageId;
-                renderAll();
-                showToast('↪️ إعادة');
-            }
         }
 
         // ============================================================
@@ -282,7 +273,7 @@
         }
 
         // ============================================================
-        // 7. عرض المكونات (نفس الكود السابق)
+        // 7. عرض المكونات
         // ============================================================
         function renderComponent(comp) {
             const p = comp.props;
@@ -411,6 +402,9 @@
                     document.querySelectorAll('.component-block').forEach(b => b.classList.remove('selected'));
                     el.classList.add('selected');
                     renderInspector();
+                    if (window.innerWidth <= 900) {
+                        openInspector();
+                    }
                 });
                 const delBtn = el.querySelector('.delete-btn');
                 if (delBtn) {
@@ -523,7 +517,7 @@
         }
 
         // ============================================================
-        // 9. لوحة الخصائص – نظام الألوان المتقدم (صفين)
+        // 9. لوحة الخصائص – نظام الألوان المتقدم
         // ============================================================
         function renderInspector() {
             const container = document.getElementById('inspectorContent');
@@ -569,20 +563,18 @@
                 </div>`;
             });
 
-            // ===== أداة الألوان المتقدمة =====
+            // أداة الألوان المتقدمة (صفين)
             const currentColor = p.style?.color || '#000000';
             html += `
                 <hr style="margin:12px 0;border-color:var(--border);">
                 <div class="inspector-field">
                     <label>اللون <i class="fas fa-question-circle tooltip-trigger" data-tooltip="اختر لون النص. يمكنك كتابة الكود أو النقر على شريط التدرج."></i></label>
                     <div class="color-picker-advanced">
-                        <!-- الصف العلوي: حقل النص + منتقي اللون -->
                         <div class="color-row-top">
                             <input type="text" class="color-hex-input" data-style="color" value="${currentColor}" placeholder="#RRGGBB">
                             <input type="color" class="color-native-picker" value="${currentColor}">
                             <div class="color-preview-box" style="background-color: ${currentColor};"></div>
                         </div>
-                        <!-- الصف السفلي: شريط التدرج -->
                         <div class="color-row-bottom">
                             <div class="color-gradient-bar" id="gradientBar"></div>
                         </div>
@@ -609,64 +601,47 @@
 
             container.innerHTML = html;
 
-            // ============================================================
             // ربط أحداث أداة الألوان
-            // ============================================================
             const hexInput = container.querySelector('.color-hex-input');
             const nativePicker = container.querySelector('.color-native-picker');
             const previewBox = container.querySelector('.color-preview-box');
             const gradientBar = container.querySelector('.color-gradient-bar');
 
-            // دالة لتحديث كل العناصر من لون معين (hex)
             const updateColorUI = (hex) => {
                 hexInput.value = hex;
                 nativePicker.value = hex;
                 previewBox.style.backgroundColor = hex;
             };
 
-            // عند تغيير حقل النص
             hexInput.addEventListener('input', function() {
                 let val = this.value.trim();
                 if (/^#([0-9a-f]{3}){1,2}$/i.test(val)) {
                     updateColorUI(val);
-                    // نطبق التغيير فوراً على العنصر (اختياري)
                 }
             });
 
-            // عند استخدام منتقي الألوان المدمج
             nativePicker.addEventListener('input', function() {
                 updateColorUI(this.value);
             });
 
-            // ===== شريط التدرج =====
-            // نرسم التدرج باستخدام CSS (طيف HSL)
-            const drawGradient = () => {
-                gradientBar.style.background = 'linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)';
-                gradientBar.style.width = '100%';
-                gradientBar.style.height = '32px';
-                gradientBar.style.borderRadius = 'var(--radius)';
-                gradientBar.style.cursor = 'pointer';
-                gradientBar.style.border = '1px solid var(--border)';
-                gradientBar.style.position = 'relative';
-            };
-            drawGradient();
+            // رسم شريط التدرج
+            gradientBar.style.background = 'linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)';
+            gradientBar.style.width = '100%';
+            gradientBar.style.height = '32px';
+            gradientBar.style.borderRadius = 'var(--radius)';
+            gradientBar.style.cursor = 'pointer';
+            gradientBar.style.border = '1px solid var(--border)';
 
-            // استخراج اللون من النقرة على شريط التدرج
             gradientBar.addEventListener('click', function(e) {
                 const rect = this.getBoundingClientRect();
                 const x = e.clientX - rect.left;
                 const percent = Math.min(1, Math.max(0, x / rect.width));
-                // تحويل النسبة إلى درجة Hue (0-360)
                 const hue = Math.round(percent * 360);
-                const color = `hsl(${hue}, 100%, 50%)`;
-                // تحويل hsl إلى hex
                 const hex = hslToHex(hue, 100, 50);
                 updateColorUI(hex);
-                // نطبق التغيير على الخاصية فوراً
                 applyColor(hex);
             });
 
-            // دالة مساعدة لتحويل HSL إلى Hex
             function hslToHex(h, s, l) {
                 s /= 100;
                 l /= 100;
@@ -679,22 +654,18 @@
                 return `#${[r,g,b].map(c => c.toString(16).padStart(2, '0')).join('')}`;
             }
 
-            // دالة لتطبيق اللون على العنصر (بدون حفظ)
             function applyColor(hex) {
-                // نحدث خاصية style.color للعنصر المحدد
                 const page = pages.find(p => p.id === currentPageId);
                 const comp = page?.components.find(c => c.id === selectedComponentId);
                 if (comp) {
                     if (!comp.props.style) comp.props.style = {};
                     comp.props.style.color = hex;
-                    // نعيد رسم المعاينة فقط دون حفظ (لتجنب إضافة تاريخ)
                     renderCanvas();
-                    // نعيد تحديث المفتش للحفاظ على التزامن
                     renderInspector();
                 }
             }
 
-            // تطبيق التغييرات الكاملة
+            // تطبيق التغييرات
             document.getElementById('applyPropsBtn').addEventListener('click', () => {
                 const newProps = {};
                 const inputs = container.querySelectorAll('input[data-prop]');
@@ -706,7 +677,6 @@
                 styleInputs.forEach(inp => {
                     styleUpdates[inp.dataset.style] = inp.value;
                 });
-                // إضافة اللون من أداة الألوان
                 const colorVal = hexInput.value.trim();
                 if (colorVal) {
                     styleUpdates.color = colorVal;
@@ -722,14 +692,89 @@
                 selectedComponentId = null;
                 renderInspector();
                 document.querySelectorAll('.component-block').forEach(b => b.classList.remove('selected'));
+                if (window.innerWidth <= 900) {
+                    closeInspector();
+                }
             });
         }
 
         // ============================================================
-        // 10. تصدير الموقع (نفسه)
+        // 10. تصدير الموقع (مختصر)
         // ============================================================
         function exportFullSite() {
-            // ... (نفس الكود السابق، اختصاراً)
+            const allPages = pages;
+            let exportHtml = `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>موقعي - WebStudio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-bg: #eff6ff;
+            --surface: #ffffff;
+            --bg: #f8fafc;
+            --text-primary: #0f172a;
+            --text-secondary: #334155;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            --radius: 16px;
+            --radius-full: 9999px;
+            --font-family: 'Cairo', sans-serif;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; font-family:var(--font-family); }
+        body { background:var(--bg); color:var(--text-primary); padding:20px; direction:rtl; }
+        .container { max-width:1200px; margin:0 auto; background:var(--surface); border-radius:var(--radius); padding:20px; }
+        .page-container { display:block; margin-bottom:20px; }
+        .component-block { margin:16px 0; padding:12px; border-radius:var(--radius); background:var(--surface); }
+        .component-block img { max-width:100%; height:auto; border-radius:var(--radius); }
+        .component-block a { text-decoration:none; }
+        .component-block button { cursor:pointer; }
+    </style>
+</head>
+<body>
+    <div class="container">`;
+            allPages.forEach(page => {
+                exportHtml += `<div class="page-container" data-page-id="${page.id}">
+                    <h2 style="margin-bottom:16px;">📄 ${page.name}</h2>`;
+                page.components.forEach(comp => {
+                    const p = comp.props;
+                    const style = p.style || {};
+                    const inlineStyle = Object.entries(style)
+                        .map(([k, v]) => `${k.replace(/([A-Z])/g, '-$1').toLowerCase()}:${v}`)
+                        .join(';');
+                    const wrap = (html) => `<div class="component-block" style="${inlineStyle}">${html}</div>`;
+                    switch (comp.type) {
+                        case 'heading': const H = p.level || 'h1'; exportHtml += wrap(`<${H}>${p.text}</${H}>`); break;
+                        case 'paragraph': exportHtml += wrap(`<p>${p.text}</p>`); break;
+                        case 'button': exportHtml += wrap(`<a href="${p.link || '#'}" style="display:inline-block;background:var(--primary);color:#fff;padding:10px 24px;border-radius:var(--radius-full);">${p.text}</a>`); break;
+                        case 'image': exportHtml += wrap(`<img src="${p.src}" alt="${p.alt || ''}" style="max-width:100%;border-radius:var(--radius);">`); break;
+                        case 'video': exportHtml += wrap(`<video controls style="max-width:100%;"><source src="${p.src}"></video>`); break;
+                        case 'navbar': { const items = (p.items || '').split(',').map(i => i.trim()).filter(i => i); exportHtml += wrap(`<nav style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;"><strong>${p.logo}</strong><div style="display:flex;gap:16px;">${items.map(i => `<span>${i}</span>`).join('')}</div></nav>`); break; }
+                        case 'footer': exportHtml += wrap(`<footer style="text-align:center;padding:20px 0;border-top:1px solid var(--border);">${p.text}</footer>`); break;
+                        case 'hero': exportHtml += wrap(`<div style="text-align:center;padding:40px 20px;background:var(--primary-bg);border-radius:var(--radius);"><h1>${p.title}</h1><p style="font-size:1.2rem;margin:12px 0;">${p.subtitle}</p><a href="${p.btnLink || '#'}" style="display:inline-block;background:var(--primary);color:#fff;padding:10px 28px;border-radius:var(--radius-full);">${p.btnText}</a></div>`); break;
+                        case 'card': exportHtml += wrap(`<div style="padding:16px;border:1px solid var(--border);border-radius:var(--radius);"><img src="${p.image}" style="width:100%;border-radius:var(--radius);height:180px;object-fit:cover;"><h3 style="margin:12px 0 4px;">${p.title}</h3><p>${p.description}</p></div>`); break;
+                        case 'gallery': { const imgs = (p.images || '').split(',').map(s => s.trim()).filter(s => s); exportHtml += wrap(`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;">${imgs.map(src => `<img src="${src}" style="width:100%;border-radius:var(--radius);height:150px;object-fit:cover;">`).join('')}</div>`); break; }
+                        case 'testimonial': exportHtml += wrap(`<div style="padding:16px;background:var(--primary-bg);border-radius:var(--radius);font-style:italic;"><p>"${p.quote}"</p><strong>— ${p.author}</strong></div>`); break;
+                        case 'pricing': { const features = (p.features || '').split(',').map(f => f.trim()).filter(f => f); exportHtml += wrap(`<div style="padding:16px;border:1px solid var(--border);border-radius:var(--radius);text-align:center;"><h3>${p.title}</h3><div style="font-size:2rem;font-weight:700;">${p.price} ₪</div><ul style="list-style:none;padding:0;margin:12px 0;">${features.map(f => `<li>✔ ${f}</li>`).join('')}</ul><button style="background:var(--primary);color:#fff;border:none;padding:8px 24px;border-radius:var(--radius-full);">اختر</button></div>`); break; }
+                        case 'contact-form': { const fields = (p.fields || '').split(',').map(f => f.trim()).filter(f => f); exportHtml += wrap(`<div style="padding:16px;border:1px solid var(--border);border-radius:var(--radius);"><h4>تواصل معنا</h4>${fields.map(f => `<input type="text" placeholder="${f}" style="width:100%;padding:10px;margin:6px 0;border:1px solid var(--border);border-radius:var(--radius);">`).join('')}<button style="background:var(--primary);color:#fff;border:none;padding:10px 24px;border-radius:var(--radius-full);margin-top:8px;">إرسال</button></div>`); break; }
+                        case 'map': exportHtml += wrap(`<iframe src="${p.embed}" style="width:100%;height:300px;border:0;border-radius:var(--radius);" allowfullscreen loading="lazy"></iframe>`); break;
+                        case 'social-links': { const links = (p.links || '').split(',').map(l => l.trim()).filter(l => l); const icons = ['fab fa-facebook','fab fa-twitter','fab fa-instagram','fab fa-youtube']; exportHtml += wrap(`<div style="display:flex;gap:12px;justify-content:center;">${links.map((url, idx) => `<a href="${url}" target="_blank"><i class="${icons[idx % icons.length]}" style="font-size:24px;color:var(--text-secondary);"></i></a>`).join('')}</div>`); break; }
+                        default: exportHtml += wrap(`<div>مكون ${comp.type}</div>`);
+                    }
+                });
+                exportHtml += `</div>`;
+            });
+            exportHtml += `</div><script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"><\/script></body></html>`;
+            const blob = new Blob([exportHtml], { type: 'text/html' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'my_website.html';
+            a.click();
+            URL.revokeObjectURL(a.href);
             showToast('✅ تم تصدير الموقع بنجاح');
         }
 
@@ -824,8 +869,6 @@
         // ============================================================
         // 13. الأحداث العامة
         // ============================================================
-        document.getElementById('undoBtn').addEventListener('click', undo);
-        document.getElementById('redoBtn').addEventListener('click', redo);
         document.getElementById('exportBtn').addEventListener('click', exportFullSite);
         document.getElementById('logoutBtn').addEventListener('click', () => {
             localStorage.removeItem('webstudio_user');
@@ -835,7 +878,75 @@
         });
 
         // ============================================================
-        // 14. نظام التلميحات (Tooltips)
+        // 14. التحكم بواجهة الجوال (القوائم واللوحات)
+        // ============================================================
+        const componentsPanel = document.getElementById('componentsPanel');
+        const inspectorPanel = document.getElementById('inspectorPanel');
+        const overlay = document.getElementById('overlay');
+        const closeInspectorMobile = document.getElementById('closeInspectorMobile');
+
+        function openComponents() {
+            componentsPanel.classList.add('open');
+            inspectorPanel.classList.remove('open');
+            overlay.classList.add('active');
+            updateNavTabs('components-panel');
+        }
+
+        function openInspector() {
+            inspectorPanel.classList.add('open');
+            componentsPanel.classList.remove('open');
+            overlay.classList.add('active');
+            updateNavTabs('inspector-panel');
+        }
+
+        function closeAllPanels() {
+            componentsPanel.classList.remove('open');
+            inspectorPanel.classList.remove('open');
+            overlay.classList.remove('active');
+            updateNavTabs('canvas-area');
+        }
+
+        function updateNavTabs(target) {
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.target === target);
+            });
+        }
+
+        // أزرار شريط التنقل السفلي
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                const target = this.dataset.target;
+                if (target === 'components-panel') {
+                    openComponents();
+                } else if (target === 'inspector-panel') {
+                    if (selectedComponentId) {
+                        openInspector();
+                    } else {
+                        showToast('اختر عنصراً أولاً', true);
+                    }
+                } else {
+                    closeAllPanels();
+                }
+            });
+        });
+
+        // زر إغلاق لوحة الخصائص في الجوال
+        closeInspectorMobile.addEventListener('click', () => {
+            closeAllPanels();
+        });
+
+        // طبقة التغطية
+        overlay.addEventListener('click', closeAllPanels);
+
+        // عند تغيير حجم الشاشة، نغلق اللوحات إذا أصبحت كبيرة
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 900) {
+                closeAllPanels();
+            }
+        });
+
+        // ============================================================
+        // 15. نظام التلميحات (Tooltips)
         // ============================================================
         document.addEventListener('mouseover', function(e) {
             const trigger = e.target.closest('.tooltip-trigger');
